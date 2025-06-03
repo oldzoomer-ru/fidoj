@@ -2,7 +2,7 @@ package ru.oldzoomer.fido.mailer.core.handler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.oldzoomer.fido.mailer.core.auth.AuthService;
+import ru.oldzoomer.fido.mailer.core.api.AuthApi;
 import ru.oldzoomer.fido.mailer.core.constant.BinkpCommandType;
 import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
 import ru.oldzoomer.fido.mailer.core.util.BinkpFrameUtil;
@@ -15,11 +15,11 @@ import java.net.Socket;
 @Component
 public class BinkpProtocolServerHandler {
     private final BinkpProtocolHandler binkpProtocolHandler;
-    private final AuthService authService;
+    private final AuthApi authApi;
 
-    public BinkpProtocolServerHandler(AuthService authService,
+    public BinkpProtocolServerHandler(AuthApi authApi,
                                       BinkpProtocolHandler binkpProtocolHandler) {
-        this.authService = authService;
+        this.authApi = authApi;
         this.binkpProtocolHandler = binkpProtocolHandler;
     }
 
@@ -46,7 +46,7 @@ public class BinkpProtocolServerHandler {
 
         if (BinkpFrameUtil.getCommand(addressFrame) == BinkpCommandType.M_ADR &&
                 BinkpFrameUtil.getCommand(passwordFrame) == BinkpCommandType.M_PWD &&
-                authService.authenticate(BinkpFrameUtil.readCommandFrameString(addressFrame),
+                authApi.authenticate(BinkpFrameUtil.readCommandFrameString(addressFrame),
                         BinkpFrameUtil.readCommandFrameString(passwordFrame))) {
             FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_OK, "");
             return BinkpFrameUtil.readCommandFrameString(addressFrame);
