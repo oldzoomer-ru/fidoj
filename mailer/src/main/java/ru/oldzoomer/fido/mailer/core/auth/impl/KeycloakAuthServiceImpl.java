@@ -1,11 +1,11 @@
-package ru.oldzoomer.fido.mailer.service.impl;
+package ru.oldzoomer.fido.mailer.core.auth.impl;
 
 import org.keycloak.admin.client.Keycloak;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import ru.oldzoomer.fido.mailer.service.AuthService;
+import org.springframework.stereotype.Component;
+import ru.oldzoomer.fido.mailer.core.auth.AuthService;
 
-@Service
+@Component
 public class KeycloakAuthServiceImpl implements AuthService {
     private final Keycloak keycloak;
     private final String realmName;

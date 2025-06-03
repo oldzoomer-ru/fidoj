@@ -1,9 +1,9 @@
-package ru.oldzoomer.fido.mailer.util;
+package ru.oldzoomer.fido.mailer.core.util;
 
 import org.apache.commons.lang3.ArrayUtils;
-import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
-import ru.oldzoomer.fido.mailer.constant.BinkpFrameType;
-import ru.oldzoomer.fido.mailer.model.BinkpFrame;
+import ru.oldzoomer.fido.mailer.core.constant.BinkpCommandType;
+import ru.oldzoomer.fido.mailer.core.constant.BinkpFrameType;
+import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
 
 import java.nio.charset.StandardCharsets;
 

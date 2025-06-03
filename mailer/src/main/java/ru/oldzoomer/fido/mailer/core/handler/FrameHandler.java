@@ -1,21 +1,19 @@
-package ru.oldzoomer.fido.mailer.handler;
+package ru.oldzoomer.fido.mailer.core.handler;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
-import ru.oldzoomer.fido.mailer.constant.BinkpFrameType;
-import ru.oldzoomer.fido.mailer.model.BinkpFrame;
-import ru.oldzoomer.fido.mailer.util.BinkpFrameUtil;
+import ru.oldzoomer.fido.mailer.core.constant.BinkpCommandType;
+import ru.oldzoomer.fido.mailer.core.constant.BinkpFrameType;
+import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
+import ru.oldzoomer.fido.mailer.core.util.BinkpFrameUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 @Slf4j
-@Component
 public class FrameHandler {
 
-    public void sendCommandFrame(OutputStream outputStream, BinkpCommandType commandType, String data) {
+    public static void sendCommandFrame(OutputStream outputStream, BinkpCommandType commandType, String data) {
         BinkpFrame frame = BinkpFrameUtil.createCommandFrame(commandType, data);
         byte[] frameBytes = BinkpFrameUtil.toBytes(frame);
         try {
@@ -26,7 +24,7 @@ public class FrameHandler {
         }
     }
 
-    public void sendDataFrame(OutputStream outputStream, byte[] data) {
+    public static void sendDataFrame(OutputStream outputStream, byte[] data) {
         BinkpFrame frame = new BinkpFrame(BinkpFrameType.BINKP_FRAME_TYPE_DATA, data);
         byte[] frameBytes = BinkpFrameUtil.toBytes(frame);
         try {
@@ -37,7 +35,7 @@ public class FrameHandler {
         }
     }
 
-    public BinkpFrame readResponse(InputStream inputStream) {
+    public static BinkpFrame readResponse(InputStream inputStream) {
         try {
             return BinkpFrameUtil.toFrame(inputStream.readAllBytes());
         } catch (IOException e) {

@@ -1,4 +1,4 @@
-package ru.oldzoomer.fido.mailer.constant;
+package ru.oldzoomer.fido.mailer.core.constant;
 
 public enum BinkpCommandType {
     M_NUL,

@@ -1,6 +1,6 @@
-package ru.oldzoomer.fido.mailer.model;
+package ru.oldzoomer.fido.mailer.core.model;
 
-import ru.oldzoomer.fido.mailer.constant.BinkpFrameType;
+import ru.oldzoomer.fido.mailer.core.constant.BinkpFrameType;
 
 public record BinkpFrame(BinkpFrameType type, int length, byte[] data) {
     public BinkpFrame(BinkpFrameType type, byte[] data) {

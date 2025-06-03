@@ -1,7 +1,7 @@
 package ru.oldzoomer.fido.mailer.core;
 
 import lombok.extern.slf4j.Slf4j;
-import ru.oldzoomer.fido.mailer.handler.BinkpProtocolServerHandler;
+import ru.oldzoomer.fido.mailer.core.handler.BinkpProtocolServerHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;

@@ -1,11 +1,11 @@
-package ru.oldzoomer.fido.mailer.handler;
+package ru.oldzoomer.fido.mailer.core.handler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
-import ru.oldzoomer.fido.mailer.model.BinkpFrame;
-import ru.oldzoomer.fido.mailer.service.AuthService;
-import ru.oldzoomer.fido.mailer.util.BinkpFrameUtil;
+import ru.oldzoomer.fido.mailer.core.auth.AuthService;
+import ru.oldzoomer.fido.mailer.core.constant.BinkpCommandType;
+import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
+import ru.oldzoomer.fido.mailer.core.util.BinkpFrameUtil;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -14,7 +14,6 @@ import java.net.Socket;
 @Slf4j
 @Component
 public class BinkpProtocolServerHandler {
-    private final FrameHandler frameHandler = new FrameHandler();
     private final BinkpProtocolHandler binkpProtocolHandler;
     private final AuthService authService;
 
@@ -28,31 +27,32 @@ public class BinkpProtocolServerHandler {
         try (InputStream inputStream = clientSocket.getInputStream();
              OutputStream outputStream = clientSocket.getOutputStream()) {
 
-            if (!authenticateClient(inputStream, outputStream)) {
+            String clientAddress = authenticateClient(inputStream, outputStream);
+            if (clientAddress == null) {
                 log.warn("Authentication failed for {}", clientSocket.getRemoteSocketAddress());
                 return;
             }
 
-            binkpProtocolHandler.receiveMail(inputStream, outputStream);
-            binkpProtocolHandler.sendMail(inputStream, outputStream);
+            binkpProtocolHandler.receiveMail(inputStream, outputStream, clientAddress);
+            binkpProtocolHandler.sendMail(inputStream, outputStream, clientAddress);
         } catch (Exception e) {
             log.error("Error handling client", e);
         }
     }
 
-    private boolean authenticateClient(InputStream inputStream, OutputStream outputStream) {
-        BinkpFrame addressFrame = frameHandler.readResponse(inputStream);
-        BinkpFrame passwordFrame = frameHandler.readResponse(inputStream);
+    private String authenticateClient(InputStream inputStream, OutputStream outputStream) {
+        BinkpFrame addressFrame = FrameHandler.readResponse(inputStream);
+        BinkpFrame passwordFrame = FrameHandler.readResponse(inputStream);
 
         if (BinkpFrameUtil.getCommand(addressFrame) == BinkpCommandType.M_ADR &&
                 BinkpFrameUtil.getCommand(passwordFrame) == BinkpCommandType.M_PWD &&
                 authService.authenticate(BinkpFrameUtil.readCommandFrameString(addressFrame),
                         BinkpFrameUtil.readCommandFrameString(passwordFrame))) {
-            frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_OK, "");
-            return true;
+            FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_OK, "");
+            return BinkpFrameUtil.readCommandFrameString(addressFrame);
         } else {
-            frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_ERR, "Incorrect password");
-            return false;
+            FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_ERR, "Incorrect password");
+            return null;
         }
     }
 }
