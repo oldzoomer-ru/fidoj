@@ -111,19 +111,11 @@ public class BinkpProtocolClient implements AutoCloseable {
     }
 
     private void sendCommandFrame(BinkpCommandType command, String data) {
-        try {
-            frameHandler.sendCommandFrame(outputStream, command, data);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        frameHandler.sendCommandFrame(outputStream, command, data);
     }
 
     private void sendDataFrame(byte[] data) {
-        try {
-            frameHandler.sendDataFrame(new ByteArrayOutputStream(), data);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        frameHandler.sendDataFrame(new ByteArrayOutputStream(), data);
     }
 
     private BinkpFrame readCommandFrame() throws IOException {
