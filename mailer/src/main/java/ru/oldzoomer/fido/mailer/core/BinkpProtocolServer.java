@@ -1,9 +1,7 @@
 package ru.oldzoomer.fido.mailer.core;
 
-import io.minio.MinioClient;
 import lombok.extern.slf4j.Slf4j;
-import ru.oldzoomer.fido.mailer.handler.BinkpProtocolHandler;
-import ru.oldzoomer.fido.mailer.service.AuthService;
+import ru.oldzoomer.fido.mailer.handler.BinkpProtocolServerHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -14,18 +12,13 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class BinkpProtocolServer implements AutoCloseable {
     private final int port;
-    private final AuthService authService;
-    private final MinioClient minioClient;
-    private final String bucketName;
+    private final BinkpProtocolServerHandler handler;
     private ServerSocket serverSocket;
     private ExecutorService executorService;
 
-    public BinkpProtocolServer(int port, AuthService authService,
-                               MinioClient minioClient, String bucketName) {
+    public BinkpProtocolServer(int port, BinkpProtocolServerHandler handler) {
         this.port = port;
-        this.authService = authService;
-        this.minioClient = minioClient;
-        this.bucketName = bucketName;
+        this.handler = handler;
     }
 
     public void start() {
@@ -35,7 +28,7 @@ public class BinkpProtocolServer implements AutoCloseable {
 
             executorService = Executors.newCachedThreadPool();
 
-            while (true) {
+            while (serverSocket.isBound() && !serverSocket.isClosed()) {
                 Socket clientSocket = serverSocket.accept();
                 executorService.submit(() -> handleClient(clientSocket));
             }
@@ -46,8 +39,6 @@ public class BinkpProtocolServer implements AutoCloseable {
 
     private void handleClient(Socket clientSocket) {
         try (Socket socket = clientSocket) {
-            BinkpProtocolHandler handler = new BinkpProtocolHandler(
-                    authService, minioClient, bucketName);
             handler.handleClient(socket);
         } catch (IOException e) {
             log.error("Error handling client", e);

@@ -6,84 +6,59 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.errors.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
 import ru.oldzoomer.fido.mailer.model.BinkpFrame;
-import ru.oldzoomer.fido.mailer.service.AuthService;
 import ru.oldzoomer.fido.mailer.util.BinkpFrameUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 
 @Slf4j
+@Component
 public class BinkpProtocolHandler {
-    private final AuthService authService;
-    private final FrameHandler frameHandler = new FrameHandler();
+    private final FrameHandler frameHandler;
     private final MinioClient minioClient;
     private final String bucketName;
 
-    public BinkpProtocolHandler(AuthService authService,
-                                MinioClient minioClient,
-                                String bucketName) {
-        this.authService = authService;
+    public BinkpProtocolHandler(MinioClient minioClient, FrameHandler frameHandler,
+                                @Value("${minio.bucket}") String bucketName) {
         this.minioClient = minioClient;
         this.bucketName = bucketName;
+        this.frameHandler = frameHandler;
     }
 
-    public void handleClient(Socket clientSocket) {
-        try (InputStream inputStream = clientSocket.getInputStream();
-             OutputStream outputStream = clientSocket.getOutputStream()) {
-
-            if (!authenticateClient(inputStream, outputStream)) {
-                log.warn("Authentication failed for {}", clientSocket.getRemoteSocketAddress());
-                return;
-            }
-
-            receiveMail(inputStream);
-            sendMail(outputStream);
-        } catch (Exception e) {
-            log.error("Error handling client", e);
-        }
-    }
-
-    private boolean authenticateClient(InputStream inputStream, OutputStream outputStream) throws IOException {
-        BinkpFrame addressFrame = readResponse(inputStream);
-        BinkpFrame passwordFrame = readResponse(inputStream);
-
-        if (BinkpFrameUtil.getCommand(addressFrame) == BinkpCommandType.M_ADR &&
-                BinkpFrameUtil.getCommand(passwordFrame) == BinkpCommandType.M_PWD &&
-                authService.authenticate(BinkpFrameUtil.readCommandFrameString(addressFrame),
-                        BinkpFrameUtil.readCommandFrameString(passwordFrame))) {
-            sendCommandFrame(outputStream, BinkpCommandType.M_OK, "");
-            return true;
-        } else {
-            sendCommandFrame(outputStream, BinkpCommandType.M_ERR, "Incorrect password");
-            return false;
-        }
-    }
-
-    private void receiveMail(InputStream inputStream) {
+    public void receiveMail(InputStream inputStream, OutputStream outputStream) {
         while (true) {
             try {
-                BinkpFrame frame = readResponse(inputStream);
-                if (BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_FILE) {
-                    String fileName = BinkpFrameUtil.readCommandFrameString(frame);
+                BinkpFrame frame = frameHandler.readResponse(inputStream);
+                if (BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_FILE ||
+                        BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_GET) {
+                    String[] fileInfo = BinkpFrameUtil.readCommandFrameString(frame).split(" ");
+                    String fileName = fileInfo[0];
+                    int fileSize = Integer.parseInt(fileInfo[1]);
+                    int offset = Integer.parseInt(fileInfo[3]);
+                    log.info("Receiving file: {} with size: {} and offset: {}", fileName, fileSize, offset);
+                    byte[] fileBytes = new byte[fileSize];
 
-                    while (true) {
-                        BinkpFrame dataFrame = readResponse(inputStream);
-                        if (BinkpFrameUtil.getCommand(dataFrame) == BinkpCommandType.M_EOB) {
-                            break;
-                        }
-                        minioClient.putObject(PutObjectArgs.builder().bucket(bucketName).object(fileName)
-                                .stream(new ByteArrayInputStream(BinkpFrameUtil.toBytes(dataFrame)),
-                                        -1, 10485760).build());
+                    for (int i = 0; i < fileSize; i += 32767) {
+                        BinkpFrame dataFrame = frameHandler.readResponse(inputStream);
+                        fileBytes = ArrayUtils.addAll(fileBytes, dataFrame.data());
                     }
-                } else if (BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_OK) {
+
+                    frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_GOT, String.join(" ", fileInfo));
+                    minioClient.putObject(PutObjectArgs.builder().bucket(bucketName).object(fileName).stream(
+                            new ByteArrayInputStream(fileBytes), fileSize, -1).build());
+                } else if (BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_EOB) {
                     break;
                 }
             } catch (IOException | ErrorResponseException | InsufficientDataException | InternalException |
@@ -94,22 +69,30 @@ public class BinkpProtocolHandler {
         }
     }
 
-    private void sendMail(OutputStream outputStream) throws IOException {
+    public void sendMail(InputStream inputStream, OutputStream outputStream) {
         minioClient.listObjects(ListObjectsArgs.builder().bucket(bucketName).build()).forEach(itemResult -> {
             try {
                 String fileName = itemResult.get().objectName();
-                InputStream inputStream = minioClient.getObject(GetObjectArgs.builder()
+                InputStream minioClientObject = minioClient.getObject(GetObjectArgs.builder()
                         .bucket(bucketName).object(fileName).build());
 
-                sendCommandFrame(outputStream, BinkpCommandType.M_FILE, fileName);
+                long fileSize = minioClientObject.available();
+                String[] fileInfo = {fileName, String.valueOf(fileSize),
+                        String.valueOf(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)), "0"};
 
-                byte[] buffer = new byte[32767 + 2];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    sendDataFrame(outputStream, Arrays.copyOf(buffer, bytesRead));
+                frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_FILE, String.join(" ", fileInfo));
+
+                byte[] buffer = new byte[32767];
+                int bytesRead = 0;
+                while ((bytesRead = minioClientObject.read(buffer, bytesRead, 32767)) != -1) {
+                    frameHandler.sendDataFrame(outputStream, Arrays.copyOf(buffer, bytesRead));
+                    BinkpFrame response = frameHandler.readResponse(inputStream);
+                    if (BinkpFrameUtil.getCommand(response) != BinkpCommandType.M_GOT) {
+                        break;
+                    }
                 }
 
-                sendCommandFrame(outputStream, BinkpCommandType.M_EOB, "");
+                minioClientObject.close();
             } catch (ErrorResponseException | InsufficientDataException | InternalException | InvalidKeyException |
                      InvalidResponseException | IOException | NoSuchAlgorithmException | ServerException |
                      XmlParserException e) {
@@ -117,18 +100,6 @@ public class BinkpProtocolHandler {
             }
         });
 
-        sendCommandFrame(outputStream, BinkpCommandType.M_OK, "");
-    }
-
-    private BinkpFrame readResponse(InputStream inputStream) throws IOException {
-        return frameHandler.readResponse(inputStream);
-    }
-
-    private void sendCommandFrame(OutputStream outputStream, BinkpCommandType commandType, String data) throws IOException {
-        frameHandler.sendCommandFrame(outputStream, commandType, data);
-    }
-
-    private void sendDataFrame(OutputStream outputStream, byte[] data) throws IOException {
-        frameHandler.sendDataFrame(outputStream, data);
+        frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_EOB, "");
     }
 }

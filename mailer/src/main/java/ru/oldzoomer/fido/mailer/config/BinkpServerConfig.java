@@ -1,29 +1,22 @@
 package ru.oldzoomer.fido.mailer.config;
 
-import io.minio.MinioClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.oldzoomer.fido.mailer.core.BinkpProtocolServer;
-import ru.oldzoomer.fido.mailer.service.AuthService;
+import ru.oldzoomer.fido.mailer.handler.BinkpProtocolServerHandler;
 
 @Configuration
 public class BinkpServerConfig {
-    private final MinioClient minioClient;
-    private final AuthService authService;
     private final int port;
-    private final String bucketName;
+    private final BinkpProtocolServerHandler binkpProtocolServerHandler;
 
-    public BinkpServerConfig(MinioClient minioClient, AuthService authService,
-                             @Value("${binkp.port}") int port, @Value("${minio.bucket}") String bucketName) {
-        this.minioClient = minioClient;
-        this.authService = authService;
+    public BinkpServerConfig(int port, BinkpProtocolServerHandler binkpProtocolServerHandler) {
         this.port = port;
-        this.bucketName = bucketName;
+        this.binkpProtocolServerHandler = binkpProtocolServerHandler;
     }
 
     @Bean(initMethod = "start", destroyMethod = "close")
     public BinkpProtocolServer binkpProtocolServer() {
-        return new BinkpProtocolServer(port, authService, minioClient, bucketName);
+        return new BinkpProtocolServer(port, binkpProtocolServerHandler);
     }
 }

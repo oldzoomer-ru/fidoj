@@ -1,124 +1,85 @@
 package ru.oldzoomer.fido.mailer.core;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
+import ru.oldzoomer.fido.mailer.handler.BinkpProtocolHandler;
 import ru.oldzoomer.fido.mailer.handler.FrameHandler;
 import ru.oldzoomer.fido.mailer.model.BinkpFrame;
 import ru.oldzoomer.fido.mailer.util.BinkpFrameUtil;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
+@Component
 public class BinkpProtocolClient implements AutoCloseable {
-    private final String host;
-    private final int port;
-    private final String password;
-    private final String ftnAddress;
     private final FrameHandler frameHandler;
-    private Socket socket;
-    private OutputStream outputStream;
-    private InputStream inputStream;
+    private final BinkpProtocolHandler binkpProtocolHandler;
 
-    public BinkpProtocolClient(String host, int port, String password, String ftnAddress) {
+    private Socket socket;
+    private InputStream inputStream;
+    private OutputStream outputStream;
+
+    private String host;
+    private int port;
+    private String ftnAddress;
+    private String password;
+
+    public BinkpProtocolClient(BinkpProtocolHandler binkpProtocolHandler,
+                               FrameHandler frameHandler) {
+        this.binkpProtocolHandler = binkpProtocolHandler;
+        this.frameHandler = frameHandler;
+    }
+
+    public void connect(String host, int port, String ftnAddress, String password) throws IOException {
+        log.info("Connecting to {}:{}", host, port);
+        this.socket = new Socket(host, port);
+        this.inputStream = socket.getInputStream();
+        this.outputStream = socket.getOutputStream();
         this.host = host;
         this.port = port;
-        this.password = password;
         this.ftnAddress = ftnAddress;
-        this.frameHandler = new FrameHandler();
-    }
+        this.password = password;
 
-    public void connect(Socket socket) throws IOException {
-        log.info("Connecting to {}:{}", host, port);
-        this.socket = socket;
-        this.outputStream = socket.getOutputStream();
-        this.inputStream = socket.getInputStream();
-        sendConnectionInfo();
-    }
-
-    public Map<String, InputStream> transferMail(Map<String, InputStream> inputStreams) {
-        sendMail(inputStreams);
-        return receiveMail();
-    }
-
-    @Override
-    public void close() throws IOException {
-        log.info("Disconnecting from {}:{}", host, port);
-        socket.close();
-    }
-
-    private void sendMail(Map<String, InputStream> inputStreams) {
-        for (Map.Entry<String, InputStream> entry : inputStreams.entrySet()) {
-            String fileName = entry.getKey();
-            InputStream inputStream = entry.getValue();
-
-            sendCommandFrame(BinkpCommandType.M_FILE, fileName);
-
-            try {
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    sendDataFrame(Arrays.copyOf(buffer, bytesRead));
-                }
-            } catch (IOException e) {
-                log.error("Error sending file data", e);
-            }
-
-            sendCommandFrame(BinkpCommandType.M_EOB, "");
-        }
-
-        sendCommandFrame(BinkpCommandType.M_OK, "");
-    }
-
-    private Map<String, InputStream> receiveMail() {
-        Map<String, InputStream> receivedMails = new HashMap<>();
-        try {
-            while (true) {
-                BinkpFrame frame = readCommandFrame();
-                if (BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_FILE) {
-                    String fileName = BinkpFrameUtil.readCommandFrameString(frame);
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-                    while (true) {
-                        BinkpFrame dataFrame = readCommandFrame();
-                        if (BinkpFrameUtil.getCommand(dataFrame) == BinkpCommandType.M_EOB) {
-                            break;
-                        }
-                        outputStream.write(BinkpFrameUtil.toBytes(dataFrame));
-                    }
-
-                    receivedMails.put(fileName, new ByteArrayInputStream(outputStream.toByteArray()));
-                } else if (BinkpFrameUtil.getCommand(frame) == BinkpCommandType.M_OK) {
-                    break;
-                }
-            }
-        } catch (IOException e) {
-            log.error("Error receiving mail", e);
-        }
-        return receivedMails;
-    }
-
-    private void sendConnectionInfo() throws IOException {
-        sendCommandFrame(BinkpCommandType.M_ADR, ftnAddress);
-        sendCommandFrame(BinkpCommandType.M_PWD, password);
-
-        if (BinkpFrameUtil.getCommand(readCommandFrame()) != BinkpCommandType.M_OK) {
+        if (!authenticateClient(inputStream, outputStream)) {
+            log.warn("Authentication failed for {}", socket.getRemoteSocketAddress());
             throw new RuntimeException("Authentication failed");
         }
     }
 
-    private void sendCommandFrame(BinkpCommandType command, String data) {
-        frameHandler.sendCommandFrame(outputStream, command, data);
+    public void transferMail() {
+        log.info("Transferring mail to {}:{}", host, port);
+        binkpProtocolHandler.receiveMail(inputStream, outputStream);
+        binkpProtocolHandler.sendMail(inputStream, outputStream);
     }
 
-    private void sendDataFrame(byte[] data) {
-        frameHandler.sendDataFrame(new ByteArrayOutputStream(), data);
+    public void disconnect() {
+        log.info("Disconnecting from {}:{}", host, port);
+        try {
+            socket.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        this.host = null;
+        this.port = 0;
+        this.ftnAddress = null;
+        this.password = null;
     }
 
-    private BinkpFrame readCommandFrame() throws IOException {
-        return BinkpFrameUtil.toFrame(inputStream.readAllBytes());
+    @Override
+    public void close() {
+        disconnect();
+    }
+
+    private boolean authenticateClient(InputStream inputStream, OutputStream outputStream) {
+        frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_ADR, ftnAddress);
+        frameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_PWD, password);
+
+        BinkpFrame response = frameHandler.readResponse(inputStream);
+        return BinkpFrameUtil.getCommand(response) == BinkpCommandType.M_OK;
     }
 }

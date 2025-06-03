@@ -1,5 +1,6 @@
 package ru.oldzoomer.fido.mailer.util;
 
+import org.apache.commons.lang3.ArrayUtils;
 import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
 import ru.oldzoomer.fido.mailer.constant.BinkpFrameType;
 import ru.oldzoomer.fido.mailer.model.BinkpFrame;
@@ -36,17 +37,24 @@ public class BinkpFrameUtil {
             throw new IllegalArgumentException("Binkp frame size must be less than " + BINKP_FRAME_MAX_SIZE);
         }
 
-        int type = ((data[0] >> 7) & 1);
-        int length = (data[0] & 0x7F);
+        // length is 2 octets, but first bit in first octet is type
+        // so we only have 15 bits for length
+        int type = (data[0] & 0x80) >> 7;
+        int length = ((data[0] & 0x7F) << 8) | (data[1] & 0xFF);
+        if (length > BINKP_FRAME_MAX_SIZE - BINKP_FRAME_HEADER_SIZE) {
+            throw new IllegalArgumentException("Binkp frame size must be less than " + BINKP_FRAME_MAX_SIZE);
+        }
         byte[] payload = new byte[length];
         System.arraycopy(data, 1, payload, 0, length);
         return new BinkpFrame(BinkpFrameType.fromValue(type), payload);
     }
 
     public static byte[] toBytes(BinkpFrame frame) {
-        byte[] data = new byte[BINKP_FRAME_HEADER_SIZE + frame.data().length];
-        data[0] = (byte) ((frame.type().getValue() << 7) | frame.data().length);
-        System.arraycopy(frame.data(), 0, data, 1, frame.data().length);
-        return data;
+        byte length = (byte) frame.length();
+        byte[] header = new byte[BINKP_FRAME_HEADER_SIZE];
+        // first bit is type, next 7 bits are length
+        header[0] = (byte) ((frame.type().ordinal() << 7) | ((length >> 8) & 0x7F));
+        header[1] = (byte) (length & 0xFF);
+        return ArrayUtils.addAll(header, frame.data());
     }
 }

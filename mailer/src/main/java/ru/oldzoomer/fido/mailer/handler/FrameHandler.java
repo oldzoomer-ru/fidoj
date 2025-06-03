@@ -1,6 +1,7 @@
 package ru.oldzoomer.fido.mailer.handler;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import ru.oldzoomer.fido.mailer.constant.BinkpCommandType;
 import ru.oldzoomer.fido.mailer.constant.BinkpFrameType;
 import ru.oldzoomer.fido.mailer.model.BinkpFrame;
@@ -11,6 +12,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 @Slf4j
+@Component
 public class FrameHandler {
 
     public void sendCommandFrame(OutputStream outputStream, BinkpCommandType commandType, String data) {
