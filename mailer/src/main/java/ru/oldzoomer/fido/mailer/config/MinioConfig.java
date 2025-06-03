@@ -4,6 +4,8 @@ import io.minio.MinioClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.oldzoomer.fido.mailer.core.api.StorageApi;
+import ru.oldzoomer.fido.mailer.plugins.MinioStorageApiPlugin;
 
 @Configuration
 public class MinioConfig {
@@ -17,11 +19,19 @@ public class MinioConfig {
     @Value("${minio.secret-key}")
     private String secretKey;
 
+    @Value("${minio.bucket}")
+    private String bucket;
+
     @Bean
-    public MinioClient minioClient() {
+    MinioClient minioClient() {
         return MinioClient.builder()
                 .endpoint(minioUrl)
                 .credentials(accessKey, secretKey)
                 .build();
+    }
+
+    @Bean
+    StorageApi storageApi(MinioClient minioClient) {
+        return new MinioStorageApiPlugin(minioClient, bucket);
     }
 }

@@ -3,8 +3,6 @@ package ru.oldzoomer.fido.mailer.plugins;
 import io.minio.*;
 import io.minio.errors.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import ru.oldzoomer.fido.mailer.core.api.StorageApi;
 
 import java.io.ByteArrayInputStream;
@@ -14,14 +12,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
 @Slf4j
 public class MinioStorageApiPlugin implements StorageApi {
     private final MinioClient minioClient;
     private final String bucketName;
 
-    public MinioStorageApiPlugin(MinioClient minioClient,
-                                 @Value("${minio.bucket}") String bucketName) {
+    public MinioStorageApiPlugin(MinioClient minioClient, String bucketName) {
         this.minioClient = minioClient;
         this.bucketName = bucketName;
     }

@@ -3,6 +3,8 @@ package ru.oldzoomer.fido.mailer.config;
 import org.keycloak.admin.client.Keycloak;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.oldzoomer.fido.mailer.core.api.AuthApi;
+import ru.oldzoomer.fido.mailer.plugins.KeycloakAuthApiPlugin;
 
 @Configuration
 public class KeycloakConfig {
@@ -26,5 +28,10 @@ public class KeycloakConfig {
                 realm,
                 clientId,
                 clientSecret);
+    }
+
+    @Bean
+    AuthApi authApi(Keycloak keycloak) {
+        return new KeycloakAuthApiPlugin(keycloak, realm);
     }
 }
