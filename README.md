@@ -1,2 +1,3 @@
 # fidoj
-FidoJ - (mostly) AI-written FidoNet node software
+
+FidoJ - FidoNet node software for Java platform
