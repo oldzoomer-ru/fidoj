@@ -1,4 +1,4 @@
-package ru.oldzoomer.fido.mailer.config;
+package ru.oldzoomer.fido.mailer.plugins.config;
 
 import org.keycloak.admin.client.Keycloak;
 import org.springframework.context.annotation.Bean;

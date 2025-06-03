@@ -1,4 +1,4 @@
-package ru.oldzoomer.fido.mailer.config;
+package ru.oldzoomer.fido.mailer.plugins.config;
 
 import io.minio.MinioClient;
 import org.springframework.beans.factory.annotation.Value;
