@@ -17,7 +17,12 @@ public class FrameHandler {
         BinkpFrame frame = BinkpFrameUtil.createCommandFrame(commandType, data);
         byte[] frameBytes = BinkpFrameUtil.toBytes(frame);
         try {
-            outputStream.write(frameBytes);
+            int bytesWritten = 0;
+            while (bytesWritten < frameBytes.length) {
+                int chunkSize = Math.min(frameBytes.length - bytesWritten, BinkpFrameUtil.BINKP_CHUNK_SIZE);
+                outputStream.write(frameBytes, bytesWritten, chunkSize);
+                bytesWritten += chunkSize;
+            }
         } catch (IOException e) {
             log.error("Error sending command frame", e);
             throw new RuntimeException(e);
@@ -28,7 +33,12 @@ public class FrameHandler {
         BinkpFrame frame = new BinkpFrame(BinkpFrameType.BINKP_FRAME_TYPE_DATA, data);
         byte[] frameBytes = BinkpFrameUtil.toBytes(frame);
         try {
-            outputStream.write(frameBytes);
+            int bytesWritten = 0;
+            while (bytesWritten < frameBytes.length) {
+                int chunkSize = Math.min(frameBytes.length - bytesWritten, BinkpFrameUtil.BINKP_CHUNK_SIZE);
+                outputStream.write(frameBytes, bytesWritten, chunkSize);
+                bytesWritten += chunkSize;
+            }
         } catch (IOException e) {
             log.error("Error sending data frame", e);
             throw new RuntimeException(e);
@@ -37,7 +47,16 @@ public class FrameHandler {
 
     public static BinkpFrame readResponse(InputStream inputStream) {
         try {
-            return BinkpFrameUtil.toFrame(inputStream.readAllBytes());
+            final int chunkSize = BinkpFrameUtil.BINKP_FRAME_FULL_SIZE;
+            byte[] bytes = new byte[chunkSize]; // Read in chunks
+            int bytesRead;
+            int allBytesRead = 0;
+
+            while (allBytesRead < chunkSize && (bytesRead = inputStream.read(bytes, allBytesRead, chunkSize)) != -1) {
+                allBytesRead += bytesRead;
+            }
+
+            return BinkpFrameUtil.toFrame(bytes);
         } catch (IOException e) {
             log.error("Error reading response", e);
             throw new RuntimeException(e);

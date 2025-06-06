@@ -38,10 +38,10 @@ public class BinkpProtocolServer implements AutoCloseable {
     }
 
     private void handleClient(Socket clientSocket) {
-        try (Socket socket = clientSocket) {
-            handler.handleClient(socket);
+        try (clientSocket) {
+            handler.handleClient(clientSocket);
         } catch (IOException e) {
-            log.error("Error handling client", e);
+            log.error("Error closing client socket", e);
         }
     }
 
@@ -55,7 +55,7 @@ public class BinkpProtocolServer implements AutoCloseable {
             }
         }
         if (executorService != null && !executorService.isShutdown()) {
-            executorService.shutdown();
+            executorService.shutdown(); // Gracefully shutdown the executor service
         }
     }
 }

@@ -4,9 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.oldzoomer.fido.mailer.core.api.AuthApi;
 import ru.oldzoomer.fido.mailer.core.constant.BinkpCommandType;
+import ru.oldzoomer.fido.mailer.core.exception.AuthenticationException;
+import ru.oldzoomer.fido.mailer.core.exception.ConnectionException;
 import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
 import ru.oldzoomer.fido.mailer.core.util.BinkpFrameUtil;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -29,14 +32,21 @@ public class BinkpProtocolServerHandler {
 
             String clientAddress = authenticateClient(inputStream, outputStream);
             if (clientAddress == null) {
-                log.warn("Authentication failed for {}", clientSocket.getRemoteSocketAddress());
-                return;
+                throw new AuthenticationException("Authentication failed for " +
+                        clientSocket.getRemoteSocketAddress());
             }
 
             binkpProtocolHandler.receiveMail(inputStream, outputStream, clientAddress);
             binkpProtocolHandler.sendMail(inputStream, outputStream, clientAddress);
+        } catch (AuthenticationException e) {
+            log.warn("Authentication failed: {}", e.getMessage());
+            // TODO: Optionally send error response to client
+        } catch (IOException e) {
+            log.error("Connection error: {}", e.getMessage());
+            throw new ConnectionException("Connection error: " + e.getMessage(), e);
         } catch (Exception e) {
-            log.error("Error handling client", e);
+            log.error("Unexpected error handling client", e);
+            throw new RuntimeException("Unexpected error handling client", e);
         }
     }
 

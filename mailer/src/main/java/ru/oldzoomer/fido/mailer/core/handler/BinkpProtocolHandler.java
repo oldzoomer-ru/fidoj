@@ -41,11 +41,14 @@ public class BinkpProtocolHandler {
                 int fileSize = Integer.parseInt(fileInfo[1]);
                 int offset = Integer.parseInt(fileInfo[3]);
                 log.info("Receiving file: {} with size: {} and offset: {}", fileName, fileSize, offset);
-                byte[] fileBytes = new byte[fileSize];
 
-                for (int i = 0; i < fileSize; i += 32767) {
+                byte[] fileBytes = new byte[fileSize];
+                int readSize = 0;
+
+                while (readSize < fileSize) {
                     BinkpFrame dataFrame = FrameHandler.readResponse(inputStream);
                     fileBytes = ArrayUtils.addAll(fileBytes, dataFrame.data());
+                    readSize += dataFrame.length() - BinkpFrameUtil.BINKP_FRAME_HEADER_SIZE;
                 }
 
                 FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_GOT, String.join(" ", fileInfo));

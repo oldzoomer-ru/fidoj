@@ -3,6 +3,8 @@ package ru.oldzoomer.fido.mailer.core;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.oldzoomer.fido.mailer.core.constant.BinkpCommandType;
+import ru.oldzoomer.fido.mailer.core.exception.AuthenticationException;
+import ru.oldzoomer.fido.mailer.core.exception.ConnectionException;
 import ru.oldzoomer.fido.mailer.core.handler.BinkpProtocolHandler;
 import ru.oldzoomer.fido.mailer.core.handler.FrameHandler;
 import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
@@ -28,16 +30,18 @@ public class BinkpProtocolClient {
              InputStream inputStream = socket.getInputStream();
              OutputStream outputStream = socket.getOutputStream()) {
 
-            if (!authenticateClient(inputStream, outputStream,
-                    ftnAddress, password)) {
-                log.warn("Authentication failed for {}", socket.getRemoteSocketAddress());
-                throw new RuntimeException("Authentication failed");
+            if (!authenticateClient(inputStream, outputStream, ftnAddress, password)) {
+                throw new AuthenticationException("Authentication failed for " + ftnAddress);
             }
 
             binkpProtocolHandler.receiveMail(inputStream, outputStream, ftnAddress);
             binkpProtocolHandler.sendMail(inputStream, outputStream, ftnAddress);
+        } catch (AuthenticationException e) {
+            log.warn("Authentication failed: {}", e.getMessage());
+            throw e;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            log.error("Connection error: {}", e.getMessage());
+            throw new ConnectionException("Failed to connect to " + host + ":" + port, e);
         }
     }
 
