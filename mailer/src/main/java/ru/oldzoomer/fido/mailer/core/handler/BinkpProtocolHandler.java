@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_HEADER_SIZE;
+
 @Slf4j
 @Component
 public class BinkpProtocolHandler {
@@ -48,7 +50,7 @@ public class BinkpProtocolHandler {
                 while (readSize < fileSize) {
                     BinkpFrame dataFrame = FrameHandler.readResponse(inputStream);
                     fileBytes = ArrayUtils.addAll(fileBytes, dataFrame.data());
-                    readSize += dataFrame.length() - BinkpFrameUtil.BINKP_FRAME_HEADER_SIZE;
+                    readSize += dataFrame.length() - BINKP_FRAME_HEADER_SIZE;
                 }
 
                 FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_GOT, String.join(" ", fileInfo));

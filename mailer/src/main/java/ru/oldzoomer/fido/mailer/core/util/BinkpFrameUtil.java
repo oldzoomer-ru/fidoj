@@ -7,12 +7,10 @@ import ru.oldzoomer.fido.mailer.core.model.BinkpFrame;
 
 import java.nio.charset.StandardCharsets;
 
-public class BinkpFrameUtil {
-    public static final int BINKP_FRAME_HEADER_SIZE = 2;
-    public static final int BINKP_FRAME_MAX_SIZE = 32767;
-    public static final int BINKP_FRAME_FULL_SIZE = BINKP_FRAME_HEADER_SIZE + BINKP_FRAME_MAX_SIZE;
-    public static final int BINKP_CHUNK_SIZE = 1024;
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_HEADER_SIZE;
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_MAX_SIZE;
 
+public class BinkpFrameUtil {
     public static BinkpFrame createCommandFrame(BinkpCommandType command,
                                                 String text) {
         byte[] textBytes = text.getBytes(StandardCharsets.US_ASCII);

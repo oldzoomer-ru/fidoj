@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_CHUNK_SIZE;
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_FULL_SIZE;
+
 @Slf4j
 public class FrameHandler {
 
@@ -19,7 +22,7 @@ public class FrameHandler {
         try {
             int bytesWritten = 0;
             while (bytesWritten < frameBytes.length) {
-                int chunkSize = Math.min(frameBytes.length - bytesWritten, BinkpFrameUtil.BINKP_CHUNK_SIZE);
+                int chunkSize = Math.min(frameBytes.length - bytesWritten, BINKP_CHUNK_SIZE);
                 outputStream.write(frameBytes, bytesWritten, chunkSize);
                 bytesWritten += chunkSize;
             }
@@ -35,7 +38,7 @@ public class FrameHandler {
         try {
             int bytesWritten = 0;
             while (bytesWritten < frameBytes.length) {
-                int chunkSize = Math.min(frameBytes.length - bytesWritten, BinkpFrameUtil.BINKP_CHUNK_SIZE);
+                int chunkSize = Math.min(frameBytes.length - bytesWritten, BINKP_CHUNK_SIZE);
                 outputStream.write(frameBytes, bytesWritten, chunkSize);
                 bytesWritten += chunkSize;
             }
@@ -47,7 +50,7 @@ public class FrameHandler {
 
     public static BinkpFrame readResponse(InputStream inputStream) {
         try {
-            final int chunkSize = BinkpFrameUtil.BINKP_FRAME_FULL_SIZE;
+            final int chunkSize = BINKP_FRAME_FULL_SIZE;
             byte[] bytes = new byte[chunkSize]; // Read in chunks
             int bytesRead;
             int allBytesRead = 0;
