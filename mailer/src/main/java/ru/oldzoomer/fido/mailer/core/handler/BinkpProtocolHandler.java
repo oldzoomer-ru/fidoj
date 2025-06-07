@@ -17,6 +17,7 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 
 import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_HEADER_SIZE;
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_MAX_SIZE;
 
 @Slf4j
 @Component
@@ -47,7 +48,7 @@ public class BinkpProtocolHandler {
                 byte[] fileBytes = new byte[fileSize];
                 int readSize = 0;
 
-                while (readSize < fileSize) {
+                while (readSize <= fileSize) {
                     BinkpFrame dataFrame = FrameHandler.readResponse(inputStream);
                     fileBytes = ArrayUtils.addAll(fileBytes, dataFrame.data());
                     readSize += dataFrame.length() - BINKP_FRAME_HEADER_SIZE;
@@ -78,8 +79,13 @@ public class BinkpProtocolHandler {
 
             FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_FILE, String.join(" ", fileInfo));
 
-            for (int i = 0; i < fileSize; i += 32767) {
-                FrameHandler.sendDataFrame(outputStream, Arrays.copyOfRange(fileBytes, i, i + 32767));
+            int writtenSize = 0;
+
+            while (writtenSize <= fileSize) {
+                int dataFrameSize = Math.min(BINKP_FRAME_MAX_SIZE, fileSize - writtenSize);
+                FrameHandler.sendDataFrame(outputStream, Arrays.copyOfRange(fileBytes, writtenSize, writtenSize + dataFrameSize));
+                writtenSize += dataFrameSize;
+
                 BinkpFrame response = FrameHandler.readResponse(inputStream);
                 if (BinkpFrameUtil.getCommand(response) != BinkpCommandType.M_GOT) {
                     break;
