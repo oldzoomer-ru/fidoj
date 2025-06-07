@@ -59,18 +59,6 @@ public class MinioStorageApiPlugin implements StorageApi {
     }
 
     @Override
-    public boolean exists(String filePath) {
-        try {
-            return minioClient.statObject(StatObjectArgs.builder().bucket(bucketName).object(filePath).build()) != null;
-        } catch (ErrorResponseException | InsufficientDataException | InternalException | InvalidKeyException |
-                 InvalidResponseException | IOException | NoSuchAlgorithmException | ServerException |
-                 XmlParserException e) {
-            log.error("Error while checking file existence in minio", e);
-            return false;
-        }
-    }
-
-    @Override
     public List<String> list(String filePath) {
         List<String> list = new ArrayList<>();
         minioClient.listObjects(ListObjectsArgs.builder().bucket(bucketName).prefix(filePath).build()).

@@ -13,9 +13,20 @@ import java.io.OutputStream;
 import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_CHUNK_SIZE;
 import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_FULL_SIZE;
 
+/**
+ * Handler for frames in binkp protocol
+ *
+ * @author oldzoomer
+ */
 @Slf4j
 public class FrameHandler {
-
+    /**
+     * Send command frame
+     *
+     * @param outputStream OutputStream
+     * @param commandType  Command type
+     * @param data         Data for frame
+     */
     public static void sendCommandFrame(OutputStream outputStream, BinkpCommandType commandType, String data) {
         BinkpFrame frame = BinkpFrameUtil.createCommandFrame(commandType, data);
         byte[] frameBytes = BinkpFrameUtil.toBytes(frame);
@@ -32,6 +43,12 @@ public class FrameHandler {
         }
     }
 
+    /**
+     * Send data frame
+     *
+     * @param outputStream OutputStream
+     * @param data Data for frame
+     */
     public static void sendDataFrame(OutputStream outputStream, byte[] data) {
         BinkpFrame frame = new BinkpFrame(BinkpFrameType.BINKP_FRAME_TYPE_DATA, data);
         byte[] frameBytes = BinkpFrameUtil.toBytes(frame);
@@ -48,6 +65,12 @@ public class FrameHandler {
         }
     }
 
+    /**
+     * Send command frame
+     *
+     * @param inputStream InputStream
+     * @return BinkpFrame
+     */
     public static BinkpFrame readResponse(InputStream inputStream) {
         try {
             final int chunkSize = BINKP_FRAME_FULL_SIZE;

@@ -19,6 +19,11 @@ import java.util.Arrays;
 import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_HEADER_SIZE;
 import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_MAX_SIZE;
 
+/**
+ * Binkp protocol handler
+ *
+ * @author oldzoomer
+ */
 @Slf4j
 @Component
 public class BinkpProtocolHandler {
@@ -26,6 +31,13 @@ public class BinkpProtocolHandler {
     private final KafkaTemplate<String, String> stringKafkaTemplate;
     private final StorageApi storageApi;
 
+    /**
+     * Constructor
+     *
+     * @param kafkaTemplate       KafkaTemplate
+     * @param stringKafkaTemplate KafkaTemplate for strings
+     * @param storageApi          Storage API
+     */
     public BinkpProtocolHandler(KafkaTemplate<String, NewReceiving> kafkaTemplate,
                                 KafkaTemplate<String, String> stringKafkaTemplate,
                                 StorageApi storageApi) {
@@ -34,6 +46,13 @@ public class BinkpProtocolHandler {
         this.storageApi = storageApi;
     }
 
+    /**
+     * Receive mail from FTN networks
+     *
+     * @param inputStream InputStream from Socket
+     * @param outputStream OutputStream to Socket
+     * @param ftnAddress FTN address (x:xxxx/xxx.(xx))
+     */
     public void receiveMail(InputStream inputStream, OutputStream outputStream, String ftnAddress) {
         while (true) {
             BinkpFrame frame = FrameHandler.readResponse(inputStream);
@@ -69,6 +88,14 @@ public class BinkpProtocolHandler {
         stringKafkaTemplate.send("binkp-session", "EOB");
     }
 
+    /**
+     * Send mail to FTN station
+     *
+     * @param inputStream InputStream from Socket
+     * @param outputStream OutputStream to Socket
+     * @param ftnAddress FTN address of the station
+     *                   (x:xxxx/xxx.(xx))
+     */
     public void sendMail(InputStream inputStream, OutputStream outputStream, String ftnAddress) {
         String ftnAddressForStorageApi = ftnAddress.replaceAll("[:/.@]", "_");
         storageApi.list(ftnAddressForStorageApi).forEach(itemResult -> {

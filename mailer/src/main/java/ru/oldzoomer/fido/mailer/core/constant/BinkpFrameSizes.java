@@ -1,5 +1,10 @@
 package ru.oldzoomer.fido.mailer.core.constant;
 
+/**
+ * Binkp frame sizes
+ *
+ * @author oldzoomer
+ */
 public class BinkpFrameSizes {
     public static final int BINKP_FRAME_HEADER_SIZE = 2;
     public static final int BINKP_FRAME_MAX_SIZE = 32767;
