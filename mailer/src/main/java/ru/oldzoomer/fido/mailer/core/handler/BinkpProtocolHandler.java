@@ -16,6 +16,14 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_HEADER_SIZE;
+import static ru.oldzoomer.fido.mailer.core.constant.BinkpFrameSizes.BINKP_FRAME_MAX_SIZE;
+
+/**
+ * Binkp protocol handler
+ *
+ * @author oldzoomer
+ */
 @Slf4j
 @Component
 public class BinkpProtocolHandler {
@@ -23,6 +31,13 @@ public class BinkpProtocolHandler {
     private final KafkaTemplate<String, String> stringKafkaTemplate;
     private final StorageApi storageApi;
 
+    /**
+     * Constructor
+     *
+     * @param kafkaTemplate       KafkaTemplate
+     * @param stringKafkaTemplate KafkaTemplate for strings
+     * @param storageApi          Storage API
+     */
     public BinkpProtocolHandler(KafkaTemplate<String, NewReceiving> kafkaTemplate,
                                 KafkaTemplate<String, String> stringKafkaTemplate,
                                 StorageApi storageApi) {
@@ -31,6 +46,13 @@ public class BinkpProtocolHandler {
         this.storageApi = storageApi;
     }
 
+    /**
+     * Receive mail from FTN networks
+     *
+     * @param inputStream InputStream from Socket
+     * @param outputStream OutputStream to Socket
+     * @param ftnAddress FTN address (x:xxxx/xxx.(xx))
+     */
     public void receiveMail(InputStream inputStream, OutputStream outputStream, String ftnAddress) {
         while (true) {
             BinkpFrame frame = FrameHandler.readResponse(inputStream);
@@ -45,10 +67,10 @@ public class BinkpProtocolHandler {
                 byte[] fileBytes = new byte[fileSize];
                 int readSize = 0;
 
-                while (readSize < fileSize) {
+                while (readSize <= fileSize) {
                     BinkpFrame dataFrame = FrameHandler.readResponse(inputStream);
                     fileBytes = ArrayUtils.addAll(fileBytes, dataFrame.data());
-                    readSize += dataFrame.length() - BinkpFrameUtil.BINKP_FRAME_HEADER_SIZE;
+                    readSize += dataFrame.length() - BINKP_FRAME_HEADER_SIZE;
                 }
 
                 FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_GOT, String.join(" ", fileInfo));
@@ -66,6 +88,14 @@ public class BinkpProtocolHandler {
         stringKafkaTemplate.send("binkp-session", "EOB");
     }
 
+    /**
+     * Send mail to FTN station
+     *
+     * @param inputStream InputStream from Socket
+     * @param outputStream OutputStream to Socket
+     * @param ftnAddress FTN address of the station
+     *                   (x:xxxx/xxx.(xx))
+     */
     public void sendMail(InputStream inputStream, OutputStream outputStream, String ftnAddress) {
         String ftnAddressForStorageApi = ftnAddress.replaceAll("[:/.@]", "_");
         storageApi.list(ftnAddressForStorageApi).forEach(itemResult -> {
@@ -76,8 +106,13 @@ public class BinkpProtocolHandler {
 
             FrameHandler.sendCommandFrame(outputStream, BinkpCommandType.M_FILE, String.join(" ", fileInfo));
 
-            for (int i = 0; i < fileSize; i += 32767) {
-                FrameHandler.sendDataFrame(outputStream, Arrays.copyOfRange(fileBytes, i, i + 32767));
+            int writtenSize = 0;
+
+            while (writtenSize <= fileSize) {
+                int dataFrameSize = Math.min(BINKP_FRAME_MAX_SIZE, fileSize - writtenSize);
+                FrameHandler.sendDataFrame(outputStream, Arrays.copyOfRange(fileBytes, writtenSize, writtenSize + dataFrameSize));
+                writtenSize += dataFrameSize;
+
                 BinkpFrame response = FrameHandler.readResponse(inputStream);
                 if (BinkpFrameUtil.getCommand(response) != BinkpCommandType.M_GOT) {
                     break;

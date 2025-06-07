@@ -1,5 +1,10 @@
 package ru.oldzoomer.fido.mailer.core.constant;
 
+/**
+ * Binkp command type
+ *
+ * @author oldzoomer
+ */
 public enum BinkpCommandType {
     M_NUL,
     M_ADR,
@@ -13,6 +18,12 @@ public enum BinkpCommandType {
     M_GET,
     M_SKIP;
 
+    /**
+     * Get command type by code
+     *
+     * @param code command code
+     * @return command type
+     */
     public static BinkpCommandType fromCode(int code) {
         return BinkpCommandType.values()[code];
     }
