@@ -1,4 +1,4 @@
-package ru.oldzoomer.fido.mailer.plugins.config;
+package ru.oldzoomer.fido.mailer.core.config;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;

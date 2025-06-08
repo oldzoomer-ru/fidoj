@@ -16,7 +16,7 @@ public class KeycloakAuthApiPlugin implements AuthApi {
     @Override
     public boolean authenticate(String nodeAddress, String password) {
         CredentialRepresentation representation = keycloak.realm(realmName).users().get(nodeAddress).credentials().stream()
-                .filter(credentialRepresentation -> "password".equals(credentialRepresentation.getType())
+                .filter(credentialRepresentation -> "binkp_password".equals(credentialRepresentation.getType())
                         && password.equals(credentialRepresentation.getValue()))
                 .findFirst()
                 .orElse(null);
